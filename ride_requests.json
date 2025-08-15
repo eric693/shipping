@@ -1,0 +1,41 @@
+{
+  "R001": {
+    "customer_id": "GT003",
+    "customer_name": "Hi",
+    "customer_phone": "Has",
+    "pickup_location": "嗯嗯",
+    "destination": "台北市",
+    "pickup_time": "立即",
+    "passenger_count": 4,
+    "special_requirements": "",
+    "user_id": "U215dfe5f0cdc8c5ddd970a5d2fb4b288",
+    "created_time": "2025-08-15T21:56:27.904310",
+    "status": "等待派車"
+  },
+  "R002": {
+    "customer_id": "GT003",
+    "customer_name": "Hi",
+    "customer_phone": "Has",
+    "pickup_location": "台北市",
+    "destination": "紐約",
+    "pickup_time": "立即",
+    "passenger_count": 4,
+    "special_requirements": "",
+    "user_id": "U215dfe5f0cdc8c5ddd970a5d2fb4b288",
+    "created_time": "2025-08-15T22:04:30.607780",
+    "status": "等待派車"
+  },
+  "R003": {
+    "customer_id": "GT004",
+    "customer_name": "陪",
+    "customer_phone": "你",
+    "pickup_location": "1",
+    "destination": "2",
+    "pickup_time": "立即",
+    "passenger_count": 8,
+    "special_requirements": "",
+    "user_id": "U215dfe5f0cdc8c5ddd970a5d2fb4b288",
+    "created_time": "2025-08-15T22:17:55.474682",
+    "status": "等待派車"
+  }
+}
