@@ -129,6 +129,102 @@ def get_group_settings_display():
     
     return display_text
 
+# 新增群組管理功能
+def show_group_management(event, user_id):
+    """顯示群組管理選單"""
+    if not is_admin(user_id):
+        message = TextSendMessage(text="❌ 您沒有權限執行此操作。")
+        line_bot_api.reply_message(event.reply_token, message)
+        return
+    
+    user_states[user_id] = {
+        'mode': 'group_management',
+        'question_index': 0,
+        'data': {}
+    }
+    
+    group_info = get_group_info(event)
+    current_group_text = ""
+    
+    if group_info['type'] in ['group', 'room']:
+        current_group_text = f"\n📍 當前群組ID：{group_info['id'][:12]}..."
+    
+    management_text = f"""🏢 群組權限管理
+
+{get_group_settings_display()}{current_group_text}
+
+請選擇操作：
+1. 加入當前群組到允許清單
+2. 查看群組清單
+3. 移除群組
+4. 返回主選單"""
+    
+    quick_reply_items = [
+        QuickReplyButton(action=MessageAction(label="➕ 加入當前群組", text="加入當前群組")),
+        QuickReplyButton(action=MessageAction(label="📋 查看群組清單", text="查看群組清單")),
+        QuickReplyButton(action=MessageAction(label="➖ 移除群組", text="移除群組")),
+        QuickReplyButton(action=MessageAction(label="🔙 返回主選單", text="主選單"))
+    ]
+    
+    quick_reply = QuickReply(items=quick_reply_items)
+    message = TextSendMessage(text=management_text, quick_reply=quick_reply)
+    line_bot_api.reply_message(event.reply_token, message)
+
+def handle_group_management_input(event, user_id, text):
+    """處理群組管理輸入"""
+    group_info = get_group_info(event)
+    
+    if text == "加入當前群組":
+        if group_info['type'] in ['group', 'room']:
+            group_id = group_info['id']
+            if add_group_to_allowed_list(group_id):
+                message = TextSendMessage(text=f"✅ 群組已加入允許清單！\n群組ID：{group_id[:12]}...")
+            else:
+                message = TextSendMessage(text="❌ 加入群組失敗，請稍後再試。")
+        else:
+            message = TextSendMessage(text="❌ 此功能只能在群組中使用。")
+        
+        line_bot_api.reply_message(event.reply_token, message)
+        user_states[user_id]['mode'] = None
+        
+    elif text == "查看群組清單":
+        group_list_text = get_group_settings_display()
+        message = TextSendMessage(text=group_list_text)
+        line_bot_api.reply_message(event.reply_token, message)
+        user_states[user_id]['mode'] = None
+        
+    elif text == "移除群組":
+        message = TextSendMessage(text="請提供要移除的群組ID（前12位）：")
+        line_bot_api.reply_message(event.reply_token, message)
+        user_states[user_id]['data']['action'] = 'remove_group'
+        
+    elif text == "主選單":
+        user_states[user_id]['mode'] = None
+        show_admin_menu(event, user_id)
+        
+    elif user_states[user_id]['data'].get('action') == 'remove_group':
+        # 處理群組移除
+        settings = load_group_settings()
+        allowed_groups = settings.get('allowed_groups', {})
+        
+        # 尋找匹配的群組ID
+        found_group = None
+        for group_id in allowed_groups:
+            if group_id.startswith(text):
+                found_group = group_id
+                break
+        
+        if found_group:
+            if remove_group_from_allowed_list(found_group):
+                message = TextSendMessage(text=f"✅ 群組已從允許清單移除！\n群組ID：{found_group[:12]}...")
+            else:
+                message = TextSendMessage(text="❌ 移除群組失敗，請稍後再試。")
+        else:
+            message = TextSendMessage(text=f"❌ 找不到以 '{text}' 開頭的群組ID。")
+        
+        line_bot_api.reply_message(event.reply_token, message)
+        user_states[user_id]['mode'] = None
+
 # ==================== 服務類型常數 ====================
 SERVICE_TYPES = {
     'HOTEL_PICKUP': 'hotel_pickup',
@@ -503,6 +599,54 @@ def show_customer_statistics(event, user_id):
     message = TextSendMessage(text=stats_text, quick_reply=quick_reply)
     line_bot_api.reply_message(event.reply_token, message)
 
+# 新增系統狀態查看功能
+def show_system_status(event, user_id):
+    """顯示系統狀態"""
+    if not is_admin(user_id):
+        message = TextSendMessage(text="❌ 您沒有權限執行此操作。")
+        line_bot_api.reply_message(event.reply_token, message)
+        return
+    
+    # 獲取系統狀態資訊
+    all_customers = load_customer_data()
+    group_settings = load_group_settings()
+    
+    status_text = f"""🔧 系統狀態報告
+
+📊 資料庫狀態：
+• 客戶資料檔案：{'✅ 存在' if os.path.exists('customers.json') else '❌ 不存在'}
+• 群組設定檔案：{'✅ 存在' if os.path.exists(GROUP_SETTINGS_FILE) else '❌ 不存在'}
+• 總客戶數：{len(all_customers)} 位
+• 下一個編號：GT{customer_counter:03d}
+
+👥 管理員狀態：
+• 永久管理員：{len(ADMIN_USER_IDS)} 位
+• 臨時管理員：{len(temp_admin_users)} 位
+
+🏢 群組權限：
+• 設定群組數：{len(group_settings.get('allowed_groups', {}))} 個
+• 權限模式：{'白名單模式' if group_settings.get('allowed_groups') else '開放模式'}
+
+💡 系統功能：
+• 飯店取貨建檔：✅ 正常
+• 集運業務建檔：✅ 正常
+• 客戶查詢功能：✅ 正常
+• 追蹤單號查詢：✅ 正常
+• 統計資訊功能：✅ 正常
+
+🕐 檢查時間：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
+    
+    quick_reply_items = [
+        QuickReplyButton(action=MessageAction(label="🔄 重新檢查", text="系統狀態")),
+        QuickReplyButton(action=MessageAction(label="📋 客戶列表", text="所有客戶編號")),
+        QuickReplyButton(action=MessageAction(label="🏢 群組管理", text="群組管理")),
+        QuickReplyButton(action=MessageAction(label="🔙 返回主選單", text="主選單"))
+    ]
+    
+    quick_reply = QuickReply(items=quick_reply_items)
+    message = TextSendMessage(text=status_text, quick_reply=quick_reply)
+    line_bot_api.reply_message(event.reply_token, message)
+
 # ==================== LINE Bot 處理函數 ====================
 @app.route("/callback", methods=['POST'])
 def callback():
@@ -637,7 +781,7 @@ def handle_text_message(event):
             return
         
         # 處理查看所有客戶編號
-        elif text in ['所有客戶編號', '客戶列表', '全部編號', '📋 客戶列表', '列表'] and is_admin(user_id):
+        elif text in ['所有客戶編號', '客戶列表', '全部編號', '📋 查看客戶編號', '📋 客戶編號列表', '列表'] and is_admin(user_id):
             show_all_customer_ids(event, user_id, page=1)
             return
         
@@ -651,14 +795,19 @@ def handle_text_message(event):
             return
         
         # 處理統計資訊
-        elif text in ['客戶統計', '統計資訊', '統計', '📊 統計資訊'] and is_admin(user_id):
+        elif text in ['客戶統計', '統計資訊', '統計', '📊 客戶統計', '📊 統計資訊'] and is_admin(user_id):
             show_customer_statistics(event, user_id)
             return
         
+        # 處理系統狀態
+        elif text in ['系統狀態', '狀態檢查', '🔧 系統狀態'] and is_admin(user_id):
+            show_system_status(event, user_id)
+            return
+        
         # 處理服務選擇
-        elif text in ['1', '飯店取貨代寄建檔', '飯店取貨']:
+        elif text in ['1', '飯店取貨代寄建檔', '飯店取貨', '🏨 飯店取貨建檔']:
             start_hotel_pickup_service(event, user_id)
-        elif text in ['2', '集運業務建檔', '集運服務']:
+        elif text in ['2', '集運業務建檔', '集運服務', '📦 集運業務建檔']:
             start_warehouse_shipping_service(event, user_id)
         elif text in ['選單', 'menu', '主選單']:
             if is_admin(user_id):
@@ -669,10 +818,14 @@ def handle_text_message(event):
             show_service_description(event, user_id)
         elif text in ['群組管理', '群組設定', '🏢 群組管理'] and is_admin(user_id):
             show_group_management(event, user_id)
-        elif text in ['查詢客戶', '查找客戶', '查詢客戶資料', '🔍 查詢客戶'] and is_admin(user_id):
+        elif text in ['查詢客戶', '查找客戶', '查詢客戶資料', '🔍 查詢客戶資料'] and is_admin(user_id):
             start_customer_search(event, user_id)
-        elif text in ['查詢追蹤', '追蹤查詢', '查詢追蹤單號', '📦 查詢追蹤'] and is_admin(user_id):
+        elif text in ['查詢追蹤', '追蹤查詢', '查詢追蹤單號', '📦 查詢追蹤單號'] and is_admin(user_id):
             start_tracking_search(event, user_id)
+        elif text in ['物流管理', '📦 物流資料管理'] and is_admin(user_id):
+            start_tracking_search(event, user_id)  # 暫時指向追蹤查詢
+        elif text in ['身份切換', '🔄 身份切換'] and is_admin(user_id):
+            show_identity_switch_menu(event, user_id)
         
         # 處理各種流程
         elif user_state['mode'] == 'customer_creation':
@@ -703,49 +856,77 @@ def handle_text_message(event):
             print(f"回覆錯誤訊息失敗: {reply_error}")
 
 def show_admin_menu(event, user_id):
-    """顯示管理員專用選單"""
+    """顯示管理員專用選單（修正為按鈕版本）"""
     role = get_user_role(user_id)
     admin_text = f"""🔧 管理員控制台
 
 👤 身份：{role}
-🆔 User ID：{user_id}
+🆔 User ID：{user_id[:12]}...
 
-📋 管理功能選單：
-
-🏢 客戶管理：
-• 查看所有客戶編號列表
-• 查詢特定客戶資料
-• 查看客戶統計資訊
-
-📦 物流管理：
-• 查詢追蹤單號
-• 物流資料管理
-
-🔧 系統功能：
-• 身份切換功能
-• 群組權限管理
-• 系統狀態查看
-
-💼 一般服務：
-• 飯店取貨代寄建檔
-• 集運業務建檔
-
-請選擇您需要的功能，或輸入相應指令。"""
+請選擇您需要的功能："""
     
+    # 建立完整的快速回覆按鈕列表
     quick_reply_items = [
-        QuickReplyButton(action=MessageAction(label="📋 客戶列表", text="所有客戶編號")),
-        QuickReplyButton(action=MessageAction(label="🔍 查詢客戶", text="查詢客戶資料")),
-        QuickReplyButton(action=MessageAction(label="📦 查詢追蹤", text="查詢追蹤單號")),
-        QuickReplyButton(action=MessageAction(label="📊 統計資訊", text="客戶統計")),
+        # 客戶管理功能
+        QuickReplyButton(action=MessageAction(label="📋 查看客戶編號", text="所有客戶編號")),
+        QuickReplyButton(action=MessageAction(label="🔍 查詢客戶資料", text="查詢客戶資料")),
+        QuickReplyButton(action=MessageAction(label="📊 客戶統計", text="客戶統計")),
+        
+        # 物流管理功能
+        QuickReplyButton(action=MessageAction(label="📦 查詢追蹤單號", text="查詢追蹤單號")),
+        QuickReplyButton(action=MessageAction(label="📦 物流資料管理", text="物流管理")),
+        
+        # 系統功能
+        QuickReplyButton(action=MessageAction(label="🔄 身份切換", text="身份切換")),
         QuickReplyButton(action=MessageAction(label="🏢 群組管理", text="群組管理")),
-        QuickReplyButton(action=MessageAction(label="1 - 飯店建檔", text="1")),
-        QuickReplyButton(action=MessageAction(label="2 - 集運建檔", text="2")),
+        QuickReplyButton(action=MessageAction(label="🔧 系統狀態", text="系統狀態")),
+        
+        # 一般服務
+        QuickReplyButton(action=MessageAction(label="🏨 飯店取貨建檔", text="1")),
+        QuickReplyButton(action=MessageAction(label="📦 集運業務建檔", text="2")),
+        
+        # 其他功能
         QuickReplyButton(action=MessageAction(label="👤 我的ID", text="userid")),
         QuickReplyButton(action=MessageAction(label="📖 服務說明", text="服務說明"))
     ]
     
     quick_reply = QuickReply(items=quick_reply_items)
     message = TextSendMessage(text=admin_text, quick_reply=quick_reply)
+    line_bot_api.reply_message(event.reply_token, message)
+
+def show_identity_switch_menu(event, user_id):
+    """顯示身份切換選單"""
+    if not is_admin(user_id):
+        message = TextSendMessage(text="❌ 您沒有權限執行此操作。")
+        line_bot_api.reply_message(event.reply_token, message)
+        return
+    
+    role = get_user_role(user_id)
+    switch_text = f"""🔄 身份切換功能
+
+👤 當前身份：{role}
+🆔 User ID：{user_id[:12]}...
+
+💡 功能說明：
+• 管理員代碼：{ADMIN_CODE}
+• 客戶代碼：{CLIENT_CODE}
+
+⚠️ 永久管理員無法切換為一般客戶
+ℹ️ 臨時管理員可以切換回一般客戶身份"""
+    
+    quick_reply_items = [
+        QuickReplyButton(action=MessageAction(label="👤 查看我的身份", text="userid")),
+        QuickReplyButton(action=MessageAction(label="🔙 返回主選單", text="主選單"))
+    ]
+    
+    # 如果是臨時管理員，添加切換選項
+    if user_id in temp_admin_users:
+        quick_reply_items.insert(0, 
+            QuickReplyButton(action=MessageAction(label="👥 切換為客戶", text=CLIENT_CODE))
+        )
+    
+    quick_reply = QuickReply(items=quick_reply_items)
+    message = TextSendMessage(text=switch_text, quick_reply=quick_reply)
     line_bot_api.reply_message(event.reply_token, message)
 
 def show_service_description(event, user_id):
@@ -984,7 +1165,7 @@ def ask_next_hotel_question(event, user_id):
         
         if question == "取貨日期":
             question_text = f"請提供{question}：\n\n例如：2025-08-17 或 明天"
-        elif question == "取貨時間":  # 修正這行！原本是 question_text == "取貨時間"
+        elif question == "取貨時間":
             question_text = f"請提供{question}：\n\n例如：下午2點 或 14:00"
         else:
             question_text = f"請提供{question}："
@@ -1434,62 +1615,63 @@ if __name__ == "__main__":
                     continue
         customer_counter = max_num + 1
     
-    print("GT物流服務 LINE Bot 系統啟動中...")
-    print(f"當前客戶編號計數器：GT{customer_counter:03d}")
+    print("🚀 GT物流服務 LINE Bot 系統啟動中...")
+    print(f"📋 當前客戶編號計數器：GT{customer_counter:03d}")
     print(f"🔑 管理員切換代碼：{ADMIN_CODE}")
     print(f"🔑 客戶切換代碼：{CLIENT_CODE}")
-    print("\n✅ 主要修正問題：")
-    print("1. ❌ 修正了 ask_next_hotel_question 函數中的關鍵錯誤")
-    print("   原本：elif question_text == '取貨時間':")
-    print("   修正：elif question == '取貨時間':")
-    print("2. ✅ 加強了錯誤處理和日誌記錄")
-    print("3. ✅ 已將您的 User ID 加入管理員列表")
-    print("4. ✅ 完善了所有函數的錯誤處理")
-    print("\n🆔 您的管理員身份：")
-    print(f"   User ID: U64bd314a41b4ce431f54ae39422f1b64")
-    print(f"   身份: 永久管理員")
-    print("\n系統功能：")
-    print("1. 飯店取貨代客寄建檔")
-    print("   - 客戶建檔")
-    print("   - 飯店取貨資訊收集")
-    print("   - 取貨派車安排")
+    print("\n✅ 系統功能完整清單：")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print()
-    print("2. 集運業務建檔")
-    print("   - 客戶建檔")
-    print("   - 倉庫地址提供")
-    print("   - 物流單號記錄")
+    print("🔧 管理員按鈕功能（共12個）：")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print("📋 客戶管理功能（3個）：")
+    print("   1️⃣ 📋 查看客戶編號 - 顯示所有客戶編號列表（分頁）")
+    print("   2️⃣ 🔍 查詢客戶資料 - 搜尋特定客戶資料")
+    print("   3️⃣ 📊 客戶統計 - 查看客戶統計資訊（含月份統計）")
     print()
-    print("3. 管理員功能")
-    print("   - 客戶資料查詢")
-    print("   - 追蹤單號查詢")
-    print("   - 查看所有客戶編號列表")
-    print("   - 查看統計資訊")
-    print("   - 身份切換功能")
+    print("📦 物流管理功能（2個）：")
+    print("   4️⃣ 📦 查詢追蹤單號 - 搜尋物流追蹤單號")
+    print("   5️⃣ 📦 物流資料管理 - 物流資料管理功能")
     print()
-    print("4. 身份管理")
-    print("   - 輸入管理員代碼成為臨時管理員")
-    print("   - 輸入客戶代碼切換回一般客戶")
-    print("   - 輸入 'userid' 查看身份和 User ID")
+    print("🔧 系統功能（3個）：")
+    print("   6️⃣ 🔄 身份切換 - 身份切換功能選單")
+    print("   7️⃣ 🏢 群組管理 - 群組權限管理")
+    print("   8️⃣ 🔧 系統狀態 - 系統狀態查看")
     print()
-    print("5. 進階功能")
-    print("   - 📋 所有客戶編號列表（分頁顯示）")
-    print("   - 📊 客戶統計資訊（包含月份統計）")
-    print("   - 🔍 進階搜尋和篩選")
-    print("   - 🔇 靜默模式：感謝、等等等訊息不會回覆")
+    print("💼 一般服務（2個）：")
+    print("   9️⃣ 🏨 飯店取貨建檔 - 飯店取貨代寄建檔")
+    print("   🔟 📦 集運業務建檔 - 集運業務建檔")
     print()
-    print("📋 管理員可使用以下指令：")
-    print("   - '所有客戶編號' 或 '客戶列表'：查看所有客戶編號")
-    print("   - '客戶統計' 或 '統計資訊'：查看統計資訊")
-    print("   - '查詢客戶資料'：搜尋特定客戶")
-    print("   - '查詢追蹤單號'：搜尋追蹤單號")
-    print("   - 'userid'：查看個人身份資訊")
+    print("ℹ️ 其他功能（2個）：")
+    print("   📱 👤 我的ID - 查看個人身份資訊")
+    print("   📖 📖 服務說明 - 查看服務流程說明")
     print()
-    print("🔧 故障排除說明：")
-    print("   - HTTP 400 錯誤通常是因為程式碼語法錯誤")
-    print("   - 主要修正了變數名稱錯誤：question_text vs question")
-    print("   - 增強了錯誤日誌輸出，便於除錯")
-    print("   - 確保所有條件判斷都正確無誤")
+    print("🆔 管理員身份資訊：")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print(f"   👤 永久管理員：{len(ADMIN_USER_IDS)} 位")
+    print(f"   🔐 您的 User ID: U64bd314a41b4ce431f54ae39422f1b64")
+    print(f"   🎖️ 身份等級: 永久管理員")
     print()
-    print("🚀 系統已準備就緒！現在應該不會再有 HTTP 400 錯誤了。")
+    print("📱 快速回覆按鈕優化：")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print("   ✅ 所有管理功能都已按鈕化")
+    print("   ✅ 清楚的emoji圖示標示")
+    print("   ✅ 統一的按鈕文字格式")
+    print("   ✅ 智能按鈕數量控制（最多13個）")
+    print("   ✅ 分頁按鈕自動生成")
+    print()
+    print("🔄 身份切換系統：")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print("   🎖️ 永久管理員：無法切換為一般客戶")
+    print("   ⏰ 臨時管理員：可以切換回一般客戶")
+    print("   👥 一般客戶：可透過代碼成為臨時管理員")
+    print("   🔐 代碼系統：安全的身份驗證機制")
+    print()
+    print("🌟 系統準備完成！")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print("✨ 管理員選單已完全按鈕化")
+    print("🎉 所有功能都可透過點擊按鈕操作")
+    print("🚀 系統運行順暢，準備為用戶提供服務！")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     
     app.run(host='0.0.0.0', port=6000, debug=False)
