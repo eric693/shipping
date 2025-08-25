@@ -185,5 +185,28 @@
     "EZ Way註冊手機": "弱肉強食",
     "身分證號": "生生世世",
     "created_time": "2025-08-24T12:14:25.410478"
+  },
+  "GT018": {
+    "service_type": "warehouse_shipping",
+    "收件人": "Hiss",
+    "臺灣收件地址": "Susie",
+    "EZ Way註冊手機": "Queue",
+    "身分證號": "Where’s",
+    "created_time": "2025-08-25T21:35:59.577228"
+  },
+  "GT019": {
+    "service_type": "hotel_pickup",
+    "收件人": "His",
+    "臺灣收件地址": "Dhehe",
+    "EZ Way註冊手機": "Dhdhdh",
+    "身分證號": "Dhdhdh",
+    "created_time": "2025-08-25T21:39:24.182876",
+    "hotel_pickup_info": {
+      "飯店名稱": "Dhdhdh",
+      "飯店地址": "Dhdhdh",
+      "房號": "Had",
+      "取貨日期": "明天",
+      "取貨時間": "14:00"
+    }
   }
 }

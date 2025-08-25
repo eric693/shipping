@@ -373,6 +373,101 @@ FLIGHT_SCHEDULE_INFO = """GT物流 當月班機表
 
 🕐 更新時間：{update_time}"""
 
+# ==================== 出貨與運費資訊 ====================
+SHIPPING_FEE_INFO = """出貨與運費
+
+未滿5公斤需轉運到台灣公司後在給大榮物流寄出（會慢1-2天），將會加收100元台灣大榮物流運費！
+
+貨到府後由客服給您帳單請款運費，台幣匯款支付。"""
+
+# ==================== 匯款與對帳資訊 ====================
+PAYMENT_INFO = """匯款與對帳
+
+台新銀行
+戶名：林先進
+代號：812
+帳號：26661008503304"""
+
+
+
+# ==================== 常見問題資訊 ====================
+FAQ_INFO = """常見問題
+
+我們的收件時間？
+
+我們收件時間為 週一至週五 10:00-17:00（泰國時間）。
+
+
+是否可以開箱檢查？
+
+可以的，請在填寫物流編號時，選擇是否開箱檢查喔！
+
+
+請問包裹可以幫我存放倉庫多久？
+
+包裹可免費存放7天，超過7天後將收取存倉費用，一天$100/件
+
+
+嚴禁寄送物品
+
+1. 台灣法定毒品
+
+2. 各類減肥藥品
+
+3. 菸品、電子菸、加熱菸、酒類
+
+4. 槍砲彈藥"""
+
+def show_faq_info(event, user_id):
+    """顯示常見問題資訊"""
+    faq_text = FAQ_INFO
+    
+    # 建立快速回覆按鈕
+    quick_reply_items = [
+        QuickReplyButton(action=MessageAction(label="人工客服", text="人工客服")),
+        QuickReplyButton(action=MessageAction(label="飯店取貨建檔", text="1")),
+        QuickReplyButton(action=MessageAction(label="集運業務建檔", text="2")),
+        QuickReplyButton(action=MessageAction(label="查看班機表", text="班機表")),
+        QuickReplyButton(action=MessageAction(label="出貨與運費", text="出貨與運費")),
+        QuickReplyButton(action=MessageAction(label="匯款與對帳", text="匯款與對帳")),
+        QuickReplyButton(action=MessageAction(label="返回主選單", text="主選單"))
+    ]
+    
+    # 如果是管理員，添加管理員選項
+    if is_admin(user_id):
+        quick_reply_items.extend([
+            QuickReplyButton(action=MessageAction(label="客戶列表", text="所有客戶編號")),
+            QuickReplyButton(action=MessageAction(label="查詢客戶", text="查詢客戶資料"))
+        ])
+    
+    quick_reply = QuickReply(items=quick_reply_items)
+    message = TextSendMessage(text=faq_text, quick_reply=quick_reply)
+    line_bot_api.reply_message(event.reply_token, message)
+
+def show_customer_service_info(event, user_id):
+    """顯示人工客服資訊"""
+    service_text = """人工客服
+
+需要人工協助嗎？請聯繫我們的客服：
+
+客服LINE Bot：
+https://line.me/R/ti/p/@YOUR_CUSTOMER_SERVICE_BOT_ID
+
+或直接搜尋LINE ID：@YOUR_CUSTOMER_SERVICE_BOT_ID"""
+    
+    # 建立快速回覆按鈕
+    quick_reply_items = [
+        QuickReplyButton(action=MessageAction(label="返回常見問題", text="常見問題")),
+        QuickReplyButton(action=MessageAction(label="返回主選單", text="主選單")),
+        QuickReplyButton(action=MessageAction(label="飯店取貨建檔", text="1")),
+        QuickReplyButton(action=MessageAction(label="集運業務建檔", text="2"))
+    ]
+    
+    quick_reply = QuickReply(items=quick_reply_items)
+    message = TextSendMessage(text=service_text, quick_reply=quick_reply)
+    line_bot_api.reply_message(event.reply_token, message)
+
+
 def show_flight_schedule(event, user_id):
     """顯示班機表資訊"""
     # 修正：正確格式化當前時間
@@ -397,7 +492,55 @@ def show_flight_schedule(event, user_id):
     quick_reply = QuickReply(items=quick_reply_items)
     message = TextSendMessage(text=flight_info_text, quick_reply=quick_reply)
     line_bot_api.reply_message(event.reply_token, message)
+def show_shipping_fee_info(event, user_id):
+    """顯示出貨與運費資訊"""
+    shipping_info_text = SHIPPING_FEE_INFO
+    
+    # 建立快速回覆按鈕
+    quick_reply_items = [
+        QuickReplyButton(action=MessageAction(label="飯店取貨建檔", text="1")),
+        QuickReplyButton(action=MessageAction(label="集運業務建檔", text="2")),
+        QuickReplyButton(action=MessageAction(label="查看班機表", text="班機表")),
+        QuickReplyButton(action=MessageAction(label="匯款與對帳", text="匯款與對帳")),
+        QuickReplyButton(action=MessageAction(label="常見問題", text="常見問題")),
+        QuickReplyButton(action=MessageAction(label="返回主選單", text="主選單"))
+    ]
+    
+    # 如果是管理員，添加管理員選項
+    if is_admin(user_id):
+        quick_reply_items.extend([
+            QuickReplyButton(action=MessageAction(label="客戶列表", text="所有客戶編號")),
+            QuickReplyButton(action=MessageAction(label="查詢客戶", text="查詢客戶資料"))
+        ])
+    
+    quick_reply = QuickReply(items=quick_reply_items)
+    message = TextSendMessage(text=shipping_info_text, quick_reply=quick_reply)
+    line_bot_api.reply_message(event.reply_token, message)
 
+def show_payment_info(event, user_id):
+    """顯示匯款與對帳資訊"""
+    payment_info_text = PAYMENT_INFO
+    
+    # 建立快速回覆按鈕
+    quick_reply_items = [
+        QuickReplyButton(action=MessageAction(label="飯店取貨建檔", text="1")),
+        QuickReplyButton(action=MessageAction(label="集運業務建檔", text="2")),
+        QuickReplyButton(action=MessageAction(label="查看班機表", text="班機表")),
+        QuickReplyButton(action=MessageAction(label="出貨與運費", text="出貨與運費")),
+        QuickReplyButton(action=MessageAction(label="返回主選單", text="主選單"))
+    ]
+    
+    # 如果是管理員，添加管理員選項
+    if is_admin(user_id):
+        quick_reply_items.extend([
+            QuickReplyButton(action=MessageAction(label="客戶列表", text="所有客戶編號")),
+            QuickReplyButton(action=MessageAction(label="查詢客戶", text="查詢客戶資料"))
+        ])
+    
+    quick_reply = QuickReply(items=quick_reply_items)
+    message = TextSendMessage(text=payment_info_text, quick_reply=quick_reply)
+    line_bot_api.reply_message(event.reply_token, message)
+    
 # 在 show_admin_menu 函數中新增班機表按鈕（修改現有函數）
 def show_admin_menu(event, user_id):
     """顯示管理員專用選單（新增班機表按鈕）"""
@@ -898,6 +1041,19 @@ def handle_text_message(event):
         elif text in ['班機表', '班機時間表', '飛機時間', '查看班機表', '查看班機表']:
             show_flight_schedule(event, user_id)
             return
+        elif text in ['出貨與運費', '出貨運費', '運費']:
+            show_shipping_fee_info(event, user_id)
+            return
+        elif text in ['常見問題', 'FAQ', '問題', '疑問']:
+            show_faq_info(event, user_id)
+            return
+
+        elif text in ['人工客服', '客服', '聯繫客服', '真人客服']:
+            show_customer_service_info(event, user_id)
+            return
+        elif text in ['匯款與對帳', '匯款', '對帳', '銀行資訊']:
+            show_payment_info(event, user_id)
+            return
         # 處理服務選擇
         elif text in ['1', '飯店取貨代寄建檔', '飯店取貨', '🏨 飯店取貨建檔']:
             start_hotel_pickup_service(event, user_id)
@@ -1033,10 +1189,12 @@ def show_service_description(event, user_id):
         QuickReplyButton(action=MessageAction(label="C - 兩者都要", text="C")),
         QuickReplyButton(action=MessageAction(label="1 - 飯店取貨建檔", text="1")),
         QuickReplyButton(action=MessageAction(label="2 - 集運業務建檔", text="2")),
-        QuickReplyButton(action=MessageAction(label="查看班機表", text="班機表")) 
+        QuickReplyButton(action=MessageAction(label="查看班機表", text="班機表")),
+        QuickReplyButton(action=MessageAction(label="出貨與運費", text="出貨與運費")),  
+        QuickReplyButton(action=MessageAction(label="匯款與對帳", text="匯款與對帳")),
+        QuickReplyButton(action=MessageAction(label="常見問題", text="常見問題")) 
     ]
     
-    # 根據身份添加返回按鈕
     if is_admin(user_id):
         quick_reply_items.append(
             QuickReplyButton(action=MessageAction(label="管理員選單", text="主選單"))
@@ -1061,7 +1219,11 @@ def show_main_menu(event, user_id=None):
         QuickReplyButton(action=MessageAction(label="C - 兩者都要", text="C")),
         QuickReplyButton(action=MessageAction(label="1 - 飯店取貨代寄建檔", text="1")),
         QuickReplyButton(action=MessageAction(label="2 - 集運業務建檔", text="2")),
-        QuickReplyButton(action=MessageAction(label="查看班機表", text="班機表")) 
+        QuickReplyButton(action=MessageAction(label="查看班機表", text="班機表")),
+        QuickReplyButton(action=MessageAction(label="出貨與運費", text="出貨與運費")), 
+        QuickReplyButton(action=MessageAction(label="匯款與對帳", text="匯款與對帳")),
+        QuickReplyButton(action=MessageAction(label="常見問題", text="常見問題")) 
+    
     ]
     
     # 如果是管理員，添加管理員選項
@@ -1091,6 +1253,9 @@ def handle_service_inquiry(event, choice):
             QuickReplyButton(action=MessageAction(label="了解倉庫寄貨", text="B")),
             QuickReplyButton(action=MessageAction(label="兩者都要", text="C")),
             QuickReplyButton(action=MessageAction(label="查看班機表", text="班機表")),
+            QuickReplyButton(action=MessageAction(label="出貨與運費", text="出貨與運費")),
+            QuickReplyButton(action=MessageAction(label="匯款與對帳", text="匯款與對帳")),
+            QuickReplyButton(action=MessageAction(label="常見問題", text="常見問題")),
             QuickReplyButton(action=MessageAction(label="主選單", text="主選單"))
         ]
         
@@ -1102,6 +1267,9 @@ def handle_service_inquiry(event, choice):
             QuickReplyButton(action=MessageAction(label="了解飯店收貨", text="A")),
             QuickReplyButton(action=MessageAction(label="兩者都要", text="C")),
             QuickReplyButton(action=MessageAction(label="查看班機表", text="班機表")),
+            QuickReplyButton(action=MessageAction(label="出貨與運費", text="出貨與運費")), 
+            QuickReplyButton(action=MessageAction(label="匯款與對帳", text="匯款與對帳")),
+            QuickReplyButton(action=MessageAction(label="常見問題", text="常見問題")),
             QuickReplyButton(action=MessageAction(label="主選單", text="主選單"))
         ]
         
@@ -1114,6 +1282,9 @@ def handle_service_inquiry(event, choice):
             QuickReplyButton(action=MessageAction(label="1 - 飯店取貨代寄建檔", text="1")),
             QuickReplyButton(action=MessageAction(label="2 - 集運業務建檔", text="2")),
             QuickReplyButton(action=MessageAction(label="查看班機表", text="班機表")),
+            QuickReplyButton(action=MessageAction(label="出貨與運費", text="出貨與運費")),
+            QuickReplyButton(action=MessageAction(label="匯款與對帳", text="匯款與對帳")),
+            QuickReplyButton(action=MessageAction(label="常見問題", text="常見問題")),
             QuickReplyButton(action=MessageAction(label="主選單", text="主選單"))
         ]
     
